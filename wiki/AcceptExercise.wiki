@@ -1,0 +1,94 @@
+#labels File-AU3,About-Other,For-Exam
+#机房接受作业提交.
+
+= Introduction =
+
+网络教室辅助工具.
+
+
+= Details =
+
+{{{
+#include<file.au3> 
+#include<array.au3>
+
+$wrongList=""
+$path=InputBox('提示','将文件复制到以下目录',@ScriptDir&'\作业\级班\'& @YEAR &"-"& @MON &"-" &  @MDAY)
+ 
+if Not FileExists($path) then DirCreate($path)
+
+ShellExecute($path)
+$destPath=RegRead('HKEY_CURRENT_USER\Software\TopDomain\e-Learning Class V6.0\TeacherMain\Preferences','SubmitPath')
+if not FileExists($destPath) then $destPath="d:"
+$destpath=$destPath&"\公共\"	
+MoveFile($destpath)
+
+$title="等待提交文件的学生列表"
+$controlId=1220
+While 1
+	_Check()
+    Sleep(100)
+WEnd
+MoveFile($destpath)
+if $wronglist<>"" then FileWrite($path&"\遗漏名单.txt",$wronglist)
+
+#region --- Internal functions Au3Recorder Start ---
+func MoveFile($ParentPath)
+	;	ConsoleWrite($ParentPath &@crlf )
+	;movefile
+	$filelist=_FileListToArray($ParentPath,'*',1)
+	if IsArray($filelist) then 
+		for $i=1 to  $filelist[0]
+			if not FileMove($ParentPath & $filelist[$i],$path,1+8) Then 
+				$wronglist&=$filelist[$i]&@crlf 
+				
+			Else
+				$name=StringReplace($filelist[$i],"\.\S+","")
+				$name=StringRegExpReplace($name,'\d+',',$0,')
+				$id=StringRegExp($name,'\d+',1)
+				if isarray($id) then 
+					$id=$id[0]
+					$name=StringRegExpReplace($name,'[ \d]','')
+				EndIf
+				
+				FileWriteLine(@ScriptDir&"\作业统计.csv",StringReplace($Path &"\"& $name&","&$id,'\',',' ))
+			EndIf
+			;	ConsoleWrite($ParentPath & $filelist[$i]&@crlf )
+		Next			
+	EndIf
+	
+	;sear subfolder			
+				
+	$folderlist=_FileListToArray($ParentPath,'*',2)
+	if IsArray($folderlist) then 
+		for $i=1 to  $folderlist[0]
+			moveFile($ParentPath & $folderlist[$i] & "\")
+		Next
+	EndIf				
+EndFunc
+
+Func _Check()
+	$var = WinList()
+
+		For $i = 1 to $var[0][0]
+	
+			If $var[$i][0] = $title   AND BitAnd( WinGetState($var[$i][1]), 2 ) Then
+				ControlClick ( $title,'', $controlId)
+				WinClose($title)
+				Sleep(1000)
+				MoveFile($destpath)		
+			
+					
+			EndIf
+		Next
+
+
+	;if WinExists($title) then 
+	; if ControlEnable ( $title, '', $controlId) Then		
+		
+	;	EndIf
+	; EndIf
+ EndFunc
+ 
+
+}}}

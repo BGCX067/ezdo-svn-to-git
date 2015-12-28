@@ -1,0 +1,167 @@
+#labels File-AU3,For-Exam,About-Excel
+#生成供Excel测验的数据.
+
+= Introduction =
+
+数字人名记录数量等随机.
+
+
+= Details =
+
+{{{
+#include<array.au3>
+dim $app,$count,$formular,$back,$LastSheet
+$count= Random(1000,2000,1)
+dim $rowsId[$count]
+For $i=0 to $count-1
+	$rowsId[$i]=$i+2
+Next
+
+;
+;创建 excel book
+
+;含表：
+Dim $sheetName[1]
+;$sheetName[0]="个人信息`序号`姓名`身份证号码`性别`地区`省份`出生日期`家长`手机`邮编`Email"
+$sheetName[0]='成绩册`学号|序号`班级|int(rand()*10+10)&"级"&int(rand()*10+10)&"班"`姓名`语文|分数`数学|分数`体育|分数`英语|分数`总分|""`平均|""'
+;$sheetName[2]='库存表`序号`名称|随机字符`类别|mid( 字符 ,int(rand()*25+11),1)`单位|mid("盒个件条箱只双克台瓶斤套把",int(rand()*13)+1,1)`单价`数量|int(分数/20)`合计|e2*f2'
+;$sheetName[3]='工资表`序号`姓名`入厂日期|出生日期`底薪|分数*30`迟到`请假|迟到`旷工|迟到`考勤扣薪|e2*20+f2*10+g2*30`实得底薪|d2-h2`全勤奖|if(sum(e2:g2)=0,500,if(and(g2<1,e2+f2<10),20*(10-e2-f2-g2),""))`表现奖|分数`房补|分数*2`其它扣款|分数`实发工资|sum(i2:l2)-m2`签名|""'
+;$sheetName[4]='IP扫描`序号`MAC`IP`扫描时间|text(now()-Rand(),"M-d HH:ss:mm")`主页|"http://"&随机字符&"."&Oxf&"."&choose(int(rand()*4+1),"com","cn","edu","org")'
+;$sheetName[4]='所有类型`序号`姓名`日期`时间`分数`数量`工资`类别`单价`身份证`手机`IP`Mac`性别`班级`负数`备注`身高'
+
+$app=ObjCreate("Excel.application")
+$app.visible=-1
+$book=$app.workbooks.add()
+
+FileDelete(@TempDir&'\back.xls')
+$book.saveas(@TempDir&'\back.xls')
+While $book.sheets.count<(UBound($sheetName)+1)
+	$book.sheets.add()
+WEnd
+
+with $book.names
+	.add('序号','=row()-1')
+	.add('分数','=71+int(cos(3.1416*(rand()))*30)') ;int(rand()*60+41)')
+	;.add('姓','="赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜戚谢邹喻柏水窦章云苏潘葛奚范彭郎鲁韦昌马苗凤花方俞任袁柳酆鲍史唐费廉岑薛雷贺倪汤滕殷罗毕郝邬安常乐于时傅皮卞齐康伍余元卜顾孟平黄和穆萧尹姚邵湛汪祁毛禹狄米贝明臧计伏成戴谈宋茅庞熊纪舒屈项祝董梁杜阮蓝闵席季麻强贾路娄危江童颜郭梅盛林刁钟徐邱骆高夏蔡田樊胡凌霍虞万支柯昝管卢莫柯房裘缪干解应宗丁宣贲邓郁单杭洪包诸左石崔吉钮龚程嵇邢滑裴陆荣翁荀羊于惠甄曲家封芮羿储靳汲邴糜松井段富巫乌焦巴弓牧隗山谷车侯白易"')
+	;.add('名','="江山天宇海涛波星月阳光辉耀和云雨虹泉川雷雪果树森林宁欢歌伟大国家胜利军刚强义勇超世羣鹰鹏虎良心自远卫保基健贺安民华婷秀丽慧娟雅甜琳芳娜怡玲佳岩玉金石旭理智友朋志同乐永嘉春明秋爽长思新萍青丹红一彤银梁桥广道建荣凯峰奇剑锐潮来清学生蕊蕾娇发小仁毅礼法知多少力平飞高齐爱帅松子白桃美康朝"')
+	.add('姓名','=mid("'& getFirstName() & '",int(rand()*30+1),1)& mid("'& getSecondName() & '",int(rand()*50+1),1)&mid("'& getSecondName() & '",int(rand()*60+1),1)')
+	.add('身份证号码','=(100000+int(rand()*899999))& text(today()-int(rand()*3*365+16*365),"yyyyMMdd") & text(int(rand()*1000),"000") & mid("0123456789X",int(rand()*11+1),1)')
+	.add('性别','=if(mod(mid(r[0]c3,17,1),2),"男","女")')
+	.add('地区','="Z"&mid(r[0]c3,3,2)')
+	.add('省份','=INDEX({"北京","天津","上海","重庆","黑龙江","吉林","辽宁","山西","河北","湖南","湖北","河南","山东","江苏","安徽","浙江","江西","福建","广东","海南","陕西","甘肃","青海","四川","贵州","云南","内蒙古","宁夏","新疆","西藏","广西","香港","澳门","台湾"},int(rand()*35))')
+	.add('出生日期','=mid(r[0]c3,7,4) & "/" & mid(r[0]c3,11,2) & "/" & mid(r[0]c3,13,2)')
+	.add('家长','=left(r[0]c2,1)&mid("'& getSecondName() & '",int(rand()*50+1),1)&mid("'& getSecondName() & '",int(rand()*60+1),1)')
+	.add('手机','=10000000000 + int(rand()* 9999999999)')
+	.add('邮编','=100000+int(rand()*899999)')
+	
+	.add('字符','="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"')
+	.add('随机字符','=if(rand()>0.5,mid(字符,int(rand()*36+1),1) &  mid(字符,int(rand()*36+1),1) , mid(字符,int(rand()*36+1),1) &  mid(字符,int(rand()*36+1),1) & mid(字符,int(rand()*36+1),1))')	
+	.add('OxF','=mid(字符,int(rand()*16+1),1) &  mid(字符,int(rand()*16+1),1)')
+	.add('Mac','=OxF&"-"&OxF&"-"&OxF&"-"&OxF&"-"&OxF&"-"&OxF')
+	.add('Ip','=int(rand()*256)&":"&int(rand()*256)&":"&int(rand()*256)&":"&int(rand()*256)')
+	
+	.add('Email','=随机字符 & 随机字符 & "@" & 随机字符 & "." & 随机字符' )
+	.add('单价','=int(rand()*100000)/100')
+	.add('迟到','=if(rand()>0.5,0,int(rand()*10)+1)' )
+	;.add('','=')
+EndWith
+
+for $i=0 to UBound($sheetName)-1
+	;表名
+	
+	$str=StringSplit($sheetName[$i],'`')
+	$sheet=$book.sheets.item($i+1)
+	$sheet.name=$str[1]
+	;表头
+	For $c=1 to $str[0]-1
+		$str_Left=StringSplit($str[$c+1],'|')
+		$str_Right=$str_Left[$str_Left[0]]
+		$str_Left=$str_Left[1]
+		$sheet.cells(1,$c).value=$str_Left
+		;FillFormula($sheet,$Count,$c,$str[$c+1])	
+		FillFormula($sheet,$Count,$c,"="&$str_Right)	
+	Next
+	$rng=$sheet.range($sheet.cells(2,1),$sheet.cells($count+1,$str[0]-1))
+	
+	$rng.columns.autofit()
+	
+	
+Next
+
+Func FillFormula($sheet,$rows,$column,$FormulaStr)
+
+	$rng=$sheet.range($sheet.cells(2,$column),$sheet.cells($rows+1,$column)) 	
+	;ConsoleWrite($formulastr&@crlf )
+	$rng.formula=$formulaStr
+	if StringLen($rng.cells.item(1).text)>15 then $rng.numberformatlocal="@"
+	$rng.value=$rng.value
+	;SetWrongLine($rng)
+	;$NextRow=$lastSheet.usedrange.rows.count+1
+
+EndFunc
+
+Func GetFirstName()
+ $s='赵钱孙李周吴郑王冯陈褚卫蒋沈韩杨朱秦尤许何吕施张孔曹严华金魏陶姜戚谢邹喻柏水窦章云苏潘葛奚范彭郎鲁韦昌马苗凤花方俞任袁柳酆鲍史唐费廉岑薛雷贺倪汤滕殷罗毕郝邬安常乐于时傅皮卞齐康伍余元卜顾孟平黄和穆萧尹姚邵湛汪祁毛禹狄米贝明臧计伏成戴谈宋茅庞熊纪舒屈项祝董梁杜阮蓝闵席季麻强贾路娄危江童颜郭梅盛林刁钟徐邱骆高夏蔡田樊胡凌霍虞万支柯昝管卢莫柯房裘缪干解应宗丁宣贲邓郁单杭洪包诸左石崔吉钮龚程嵇邢滑裴陆荣翁荀羊于惠甄曲家封芮羿储靳汲邴糜松井段富巫乌焦巴弓牧隗山谷车侯白易'
+$len=stringlen($s)
+$return=StringLeft($s,15)
+for $i=16 to 30
+		$return&=stringmid($s,Random(0,$len-1,1),1)
+Next
+
+Return $return ;StringMid($s,random(0,30,1),20) & StringMid($s,random(0,$len-10,1),10)
+
+EndFunc
+Func GetSecondName()
+ $s='江山天宇海涛波星月阳光辉耀和云雨虹泉川雷雪果树森林宁欢歌伟大国家胜利军刚强义勇超世群鹰鹏虎良心自远卫保基健贺安民华婷秀丽慧娟雅甜琳芳娜怡玲佳岩玉金石旭理智友朋志同乐永嘉春明秋爽长思新萍青丹红一彤银梁桥广道建荣凯峰奇剑锐潮来清学生蕊蕾娇发小仁毅礼法知多少力平飞高齐爱帅松子白桃美康朝'
+$len=stringlen($s)
+Return StringMid($s,random(0,$len-50,1),50)
+
+EndFunc
+
+;设置差异数据供练习：重复的，错误的...
+Func SetWrongLine($rng)
+	$a=RandomRows()
+	for $x=0 to UBound($a)-1
+		$rng.cells.item($a[$x]).font.colorindex =3
+	Next
+	
+		$rng.cells.item($a[0])=$rng.cells.item($a[1]).text
+		$rng.cells.item($a[2])=""
+		$rng.cells.item($a[3])=StringLeft($rng.cells.item($a[3]).text,1) & $rng.cells.item($a[3]).text
+		$rng.cells.item($a[4])=StringRight($rng.cells.item($a[4]).text,1)& $rng.cells.item($a[4]).text
+		$rng.cells.item($a[5])=StringLeft($rng.cells.item($a[5]).text,StringLen($rng.cells.item($a[5]).text)-1)
+	for $i=6 to UBound($a)-1
+		Switch Random(0,4,1)
+		case 0 
+			$rng.cells.item($a[$i])=$rng.cells.item($a[$i-1])
+		case 1
+			$rng.cells.item($a[$i])=""
+		case 2
+			$rng.cells.item($a[$i])=StringLeft($rng.cells.item($a[$i]),1)& $rng.cells.item($a[$i])
+		case 3
+			$rng.cells.item($a[$i])=StringRight($rng.cells.item($a[$i]),1)& $rng.cells.item($a[$i])
+		case 4
+			$rng.cells.item($a[$i])=StringLeft($rng.cells.item($a[$i]),StringLen($rng.cells.item($a[$i]))-1)
+		
+		EndSwitch
+			
+	Next
+	
+EndFunc
+;数列乱序
+Func RandomRows()
+	Local $last=$count-1
+	Local $ChangeRows=Random(1,int($last/50)+1)+6
+	dim $return[$changeRows]
+	;sheet rows前若干单元 随机交换
+	for $i=0 to $ChangeRows-1
+		$x=Random(0,$last,1)
+		_ArraySwap($rowsId[$i],$rowsId[$x])
+		$return[$i]=$rowsId[$i]
+	Next
+	Return $return
+EndFunc
+
+;		
+
+}}}

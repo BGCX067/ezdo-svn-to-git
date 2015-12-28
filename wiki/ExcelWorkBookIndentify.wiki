@@ -1,0 +1,66 @@
+#labels File-AU3,About-Excel,For-Exam
+#Excel作业抄西发现.
+
+= Introduction =
+
+检查同目录工作簿各表末行等数据散列值.
+
+
+= Details =
+
+{{{
+#include<file.au3>
+#include<crypt.au3>
+
+;ConsoleWrite(_Crypt_HashData('$encod',$CALG_MD5))
+;Exit
+$dir=FileSelectFolder("请选择目录",@scriptdir)
+$app=ObjCreate("excel.application")
+$ReportFile=$app.workbooks.add()
+$rptSheet=$ReportFile.sheets.item(1)
+$rptSheet.range("a1")="文件名"
+$rptSheet.range("b1")="学号"
+$rptSheet.range("c1")="创建日期"
+$rptSheet.range("d1")="校验1"
+$rptSheet.range("e1")="校验2"
+$rptSheet.range("f1")="校验3"
+$rptSheet.range("g1")="校验4"
+
+$app.visible=-1
+dim $b
+$files=_FileListToArray($dir,"*.xls",1)
+for $i=1 to $files[0]
+	$rptSheet.range("a"&($i+1))=$files[$i]
+	
+	$b=$app.workbooks.open($dir&"\"& $files[$i])
+	$date=FileGetTime($dir&"\"& $files[$i],1,0)
+	$rptSheet.range("c"&($i+1))=$date[0]&"-"&$date[1]&"-"&$date[2]
+	
+	$encod=""
+	for $n=1 to $b.sheets.count
+		$st=$b.sheets.item($n)
+		if $st.type<>-4167 then ContinueLoop
+		$encod=$st.name
+		$rng=$st.usedrange
+		if $rng.cells.count=1 then ExitLoop ;视为空表 
+		$encod&=$rng.address
+		for $each in $rng.rows.item($rng.rows.count).cells
+			$encod&=$each.value	
+		Next
+		;ConsoleWrite(@cr& _Crypt_HashData($encod,$CALG_MD5))
+		$rptSheet.range(chr(asc("c")+$n )&($i+1))="'"&_Crypt_HashData($encod,$CALG_MD5)
+	
+	Next
+	$b.close(False)
+	
+	
+Next
+$rptsheet.usedrange.columns.autofit()
+$rng=$rptsheet.usedrange
+$rng.formatconditions.add(2,0,"=COUNTIF("&$rng.address&",A1)>1")
+$rng.formatconditions(1).font.colorIndex=3
+
+
+;$app.quit()
+
+}}}

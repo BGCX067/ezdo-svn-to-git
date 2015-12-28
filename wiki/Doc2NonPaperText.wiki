@@ -1,0 +1,667 @@
+#labels File-AU3,For-Exam
+#电子文档转换为无纸化考题.
+
+= Introduction =
+
+每生不同卷.
+
+
+= Details =
+
+{{{
+#Region ;**** 参数创建于 ACNWrapper_GUI ****
+#AutoIt3Wrapper_UseX64=n
+#EndRegion ;**** 参数创建于 ACNWrapper_GUI ****
+#include <ButtonConstants.au3>
+#include <GUIConstantsEx.au3>
+#include <WindowsConstants.au3>
+#include<misc.au3>
+#include <SQLite.au3>
+#include <SQLite.dll.au3>
+#include <string.au3>
+#include <ComboConstants.au3>
+#include <EditConstants.au3>
+#include <GUIConstantsEx.au3>
+#include <StaticConstants.au3>
+#include<guicomboboxex.au3> 
+#include <File.au3>
+#include <Array.au3>
+;#include <Constants.au3>
+;Dim $a[3]=["ad1","a12","a134"]
+;ConsoleWrite(@crlf&"<"& _ArraySearch($a, "a1")&">")
+
+Opt("GUIOnEventMode", 1)
+#Region ### START Koda GUI section ### Form=
+$radioW=161
+$radoH=33
+$Form1 = GUICreate("无纸化考题转换", 188, 699, @DesktopWidth-188, 0, $WS_SYSMENU, BitOR($WS_EX_TOPMOST,$WS_EX_WINDOWEDGE))
+GUISetOnEvent($GUI_EVENT_CLOSE, "Form1Close")
+GUISetOnEvent($GUI_EVENT_MINIMIZE, "Form1Minimize")
+GUISetOnEvent($GUI_EVENT_MAXIMIZE, "Form1Maximize")
+GUISetOnEvent($GUI_EVENT_RESTORE, "Form1Restore")
+$Button1 = GUICtrlCreateButton("替换换行符为段落标记", 8, 16, 161, 49)
+GUICtrlSetOnEvent(-1, "Button1Click")
+$Radio1 = GUICtrlCreateRadio("无操作", 8, 72, $radioW, $radoH)
+GUICtrlSetOnEvent(-1, "Radio1Click")
+$Radio2 = GUICtrlCreateRadio("(标记填空)题答案", 8, 72+$radoH*1 , $radioW, $radoH)
+GUICtrlSetOnEvent(-1, "Radio2Click")
+$Radio3 = GUICtrlCreateRadio("◎标记单选题答案", 8, 72+$radoH*2, $radioW, $radoH)
+GUICtrlSetOnEvent(-1, "Radio3Click")
+$Radio4 = GUICtrlCreateRadio("□标记多选题答案", 8, 72+$radoH*3, $radioW, $radoH)
+GUICtrlSetOnEvent(-1, "Radio4Click")
+$Radio7 = GUICtrlCreateRadio("√标记判断题答案", 8, 72+$radoH*6, $radioW, $radoH)
+GUICtrlSetOnEvent(-1, "Radio7Click")
+$Radio5 = GUICtrlCreateRadio("*标记解释题答案", 8, 72+$radoH*4, $radioW, $radoH)
+GUICtrlSetOnEvent(-1, "Radio5Click")
+$Radio6 = GUICtrlCreateRadio("?标记问答题答案", 8, 72+$radoH*5, $radioW, $radoH)
+GUICtrlSetOnEvent(-1, "Radio6Click")
+
+$Button2 = GUICtrlCreateButton("删除最后一题", 8, 72+$radoH*8, 161, 49)
+GUICtrlSetOnEvent(-1, "Button2Click")
+;;;;;;;;;;
+$radoH=25
+$Group1 = GUICtrlCreateGroup("科目", 8, 400, $radioW+5, 249)
+
+$Combo1 = GUICtrlCreateCombo("请选择", 16, 416, 153, $radoH-5, BitOR($CBS_DROPDOWN,$CBS_AUTOHSCROLL))
+GUICtrlSetOnEvent($Combo1, "Combo1Change")
+$Label1 = GUICtrlCreateLabel("(填空)题数", 16, 448, 62, $radoH)
+ 
+$Input1 = GUICtrlCreateInput("", 96, 448, 65, 21, BitOR($GUI_SS_DEFAULT_INPUT,$ES_NUMBER))
+GUICtrlSetOnEvent($Input1, "Input1Change")
+$Label2 = GUICtrlCreateLabel("◎单选题数", 16, 472, 62, $radoH)
+ 
+$Input2 = GUICtrlCreateInput("", 96, 472, 65, $radoH)
+GUICtrlSetOnEvent($Input2, "Input2Change")
+$Label3 = GUICtrlCreateLabel("□多选题数", 16, 496, 62, $radoH)
+ 
+$Input3 = GUICtrlCreateInput("", 96, 496, 65, $radoH)
+GUICtrlSetOnEvent($Input3, "Input3Change")
+$Label4 = GUICtrlCreateLabel("√判断题数", 16, 520, 62, $radoH)
+ 
+$Input4 = GUICtrlCreateInput("", 96, 520, 65, $radoH)
+GUICtrlSetOnEvent($Input4, "Input4Change")
+$Label5 = GUICtrlCreateLabel("*解释题数", 16, 544, 62, $radoH)
+ 
+$Input5 = GUICtrlCreateInput("", 96, 544, 65, $radoH)
+GUICtrlSetOnEvent($Input5, "Input5Change")
+$Label6 = GUICtrlCreateLabel("?问答题数", 16, 568, 62, $radoH)
+ 
+$Input6 = GUICtrlCreateInput("", 96, 568, 65, 21)
+GUICtrlSetOnEvent($Input6, "Input6Change")
+$Button3 = GUICtrlCreateButton("试卷生成", 16, 600, 73, 33)
+GUICtrlSetOnEvent($Button3, "Button3Click")
+$Button4 = GUICtrlCreateButton("试卷评分", 96, 600, 73, 33)
+GUICtrlSetOnEvent($Button4, "Button4Click")
+GUICtrlCreateGroup("", -99, -99, 1, 1)
+
+;;;;;;;;;
+
+#EndRegion ### END Koda GUI section ###
+Dim $db,$kemu,$doc,$scroPath
+$examType=0
+
+$app=ObjGet("","word.application")
+If Not IsObj($app) Then
+	$app=ObjCreate("word.application")
+	$doc=$app.documents.add()
+EndIf
+$app.ActiveWindow.View.ShowFieldCodes =False
+$app.visible=-1
+$doc=$app.activedocument
+$sel=$app.selection.range
+
+
+$kemu=InputBox("提示","请输入新科目名称",$doc.content.sentences.item(1).text )
+GUISetState(@SW_SHOW)
+Const $dbName=@ScriptDir&'\题库.db'
+_SQLite_Startup(@ScriptDir&"\sqlite3.dll")
+$db = _SQLite_Open($dbName,$SQLITE_OPEN_READWRITE + $SQLITE_OPEN_CREATE ,$SQLITE_ENCODING_UTF16 )
+_SQLite_Exec(-1,"CREATE TABLE IF NOT EXISTS db( Id Integer Primary Key AutoIncrement,kemu text,tixin text, timu text UNIQUE,daan text, xuanxiang text )")
+ComboAdditem()
+While 1
+	Sleep(254)
+	If  _ispressed("01") Then 
+		While   _ispressed("01")	
+			Sleep(254)
+		WEnd
+		$sel=$app.selection.range
+	endif
+	
+	;
+	If   $sel.text<>"" Then ;And $sel.start<>$app.selection.range.start then
+		
+		
+		InsertOLE($sel)
+		Combo1Change()
+		
+		;msgbox(0,StringLen($sel.text),$sel.text)	
+	endif
+	
+WEnd
+_SQLite_Shutdown()
+Func InsertOLE($rng)
+	$ok=1
+	
+	Switch $examType
+		Case 1
+			
+		Case 2
+			;去掉tab tab有特殊用途 -输入点
+			$rng.paragraphs.item(1).range.find.execute("^t", False, False, False, False, False, True, 0, False, "   ", 2)
+			
+			$tixin="填空"
+			$daan= StringStripWS($rng.text,7)
+			$rng.text =@TAB ;_StringRepeat(" ",Int(StringLen($daan)*1.5)+3 ) ;"$doc.range($rng.start,$rng.start)
+			
+			$timu=StringRegExpReplace($app.selection.paragraphs.item(1).range.text ,"\A\d+[、．\. ,\)\s]*","",1)
+			$sql= "INSERT INTO db(kemu ,tixin, timu ,daan ) VALUES(" &  _SQLite_Escape($kemu) & "," & _SQLite_Escape($tixin)& "," & _SQLite_Escape($timu)& "," & _SQLite_Escape($daan)& ");" 
+			$rng.text=$daan 
+			;ConsoleWrite(@CRLF &$sql )
+			$ok=_SQLite_Exec(-1,$sql  )
+	
+		Case 3
+			$rng.paragraphs.item(1).range.find.execute("^t", False, False, False, False, False, True, 0, False, "   ", 2)
+			
+			$tixin="单选"
+			;答案
+			$daan= StringStripWS($rng.text,7)
+			If Not(StringInStr("ABCDE",$daan ) And  StringLen($daan)=1)  Then  $daan=InputBox("提示","请输入一个正确的选项:ABCED","")
+			$daan=StringUpper($daAn)
+			;题目
+			$rng.text=@TAB
+			Local $pID=$doc.range(1,$rng.start).paragraphs.count
+			$timu=$doc.paragraphs.item($pID).range.text
+			$timu=StringRegExpReplace($timu ,"\A\d+[、．\. ,\)\s]*","",1)
+			
+			Local $i=1
+			;选项
+			$xuanxiang="  " ;"
+			While 1=StringRegExp($doc.paragraphs.item($i+$pID).range.text,"\A[　\s\(]*[A-Ea-e]\W+",0 ) And $i<5
+				$xuanxiang&=$doc.paragraphs.item($i+$pID).range.text
+				$i+=1
+			WEnd
+		 ConsoleWrite(@CRLF &"..1-> "& $xuanxiang &@CRLF ) 
+			$xuanxiang=StringRegExpReplace($xuanxiang,"\s*\(*[A-Ea-e][、．\. ,\)\s]+",Chr(13))
+			$xuanxiang=StringSplit($xuanxiang,chr(13))
+		 
+			For $i= $xuanxiang[0] To 1 Step -1
+				$xuanxiang[$i ]=@TAB & StringStripWS($xuanxiang[$i ],7)
+				If StringRegExpReplace($xuanxiang[$i ],'\s',"")="" Then _ArrayDelete($xuanxiang,$i )
+			Next
+
+			$xuanxiang=_ArrayToString($xuanxiang, " " ,1)
+			 ConsoleWrite(@CRLF &"..2-> "& $xuanxiang &@CRLF ) 
+			;insert data
+			$sql= "INSERT INTO db(kemu ,tixin, timu ,daan,xuanxiang ) VALUES(" &  _SQLite_Escape($kemu) & "," & _SQLite_Escape($tixin)& "," & _SQLite_Escape($timu)& "," & _SQLite_Escape($daan)& "," & _SQLite_Escape($xuanxiang) &");"  
+			$ok=_SQLite_Exec(-1,$sql  )
+						
+		Case 4
+			$tixin="多选"
+			;$daan=InputBox("提示","输入多选题答案","abcd")
+			TrayTip("提示","暂时不支持",2,2)
+			Sleep(3000)
+		Case 5,6
+			;$rng.paragraphs.item(1).range.find.execute("^t", False, False, False, False, False, True, 0, False, "   ", 2)
+			$tixin="解释"
+			If $examType=6 Then $tixin="问答"
+			Local $pID=$doc.range(1,$rng.start).paragraphs.count
+			
+			$timu=$doc.paragraphs.item($pID-1).range.text
+			$timu=StringRegExpReplace($timu ,"\A\d+[、．\. ,\)\s]*","",1)
+			$rng.Expand(4)
+			$daan=$rng.text ;doc.paragraphs.item($pID).range.text
+			;
+			$sql= "INSERT INTO db(kemu ,tixin, timu ,daan ) VALUES(" &  _SQLite_Escape($kemu) & "," & _SQLite_Escape($tixin)& "," & _SQLite_Escape($timu)& "," & _SQLite_Escape($daan)& ");" 
+			$ok=_SQLite_Exec(-1,$sql  )
+			$rng.text=""
+		Case 7
+			$rng.paragraphs.item(1).range.find.execute("^t", False, False, False, False, False, True, 0, False, "   ", 2)
+			
+			$tixin="判断"
+			;答案
+			$daan=$rng.text
+			If StringInStr("|正确|对|yes|y|是|true|√|","|"&$daan&"|") Then 
+				$daan=1
+			Else
+				$daAn=0
+			EndIf
+			$rng.text=@TAB 
+			
+			;timu
+			$timu=$rng.paragraphs.item(1).range.text
+			$timu=StringRegExpReplace($timu ,"\A\s*\d{1,2}[、．\. ,\)\s]*","",1)
+			
+			$sql="INSERT INTO db(kemu ,tixin, timu ,daan ) VALUES(" &  _SQLite_Escape($kemu) & "," & _SQLite_Escape($tixin)& "," & _SQLite_Escape($timu)& "," & _SQLite_Escape($daan)& ");" 
+			$ok=_SQLite_Exec(-1,$sql  )
+			
+		Case else
+		
+	endswitch
+
+	$sel=$app.selection.range
+	If $ok=$SQLITE_OK Then 
+		Local $arow 
+		_SQLite_QuerySingleRow(-1,"SELECT tixin, timu , daan,xuanxiang FROM db where id=last_insert_rowid() ;",$aRow)
+		TrayTip("收录: "&$arow[0],$arow[1] &StringReplace($arow[3],@tab,@crlf) & @CRLF & $arow[2],6,2)
+	Else
+		TrayTip("","",2,2)
+	EndIf
+EndFunc
+
+Func Button1Click()
+	
+    With $app.Selection.Find
+	 .ClearFormatting()
+    .Replacement.ClearFormatting()	
+    .Execute( "^l", False, False, False, False, False, True, 1, False, "^p", 2)
+	.Execute( "）", False, False, False, False, False, True, 1, False, ")", 2)
+	.Execute( "（", False, False, False, False, False, True, 1, False, "(", 2)
+	.Execute( " ", False, False, False, False, False, True, 1, False, " ", 2)
+    EndWith
+    
+EndFunc
+Func Button2Click()
+	Local $arow ,$ok 
+	_SQLite_QuerySingleRow(-1,"SELECT max(id),tixin,timu FROM db;",$aRow)
+	$ok=_SQLite_Exec(-1,"DELETE FROM db where id="&$arow[0]&";")
+	If $ok= $SQLITE_OK Then TrayTip("成功删除"&$arow[1]&"题 ID:"&$arow[0],$arow[2],3,2)
+	Combo1Change()
+EndFunc
+Func Button3Click()
+	;试卷生成
+	Local $i,$arow ,$data,$doc 
+	
+	
+	For $i=0 To 50
+		$doc=$app.documents.add()
+		$docTitle=GUICtrlRead($Combo1)	
+		$doc.content.paragraphformat.BaseLineAlignment = 1
+		$doc.content.paragraphformat.FirstLineIndent = -10				
+		$doc.content.paragraphformat.LeftIndent =10
+		$doc.content.paragraphformat.LineUnitafter = 0.5
+		$doc.content.paragraphformat.Alignment=1
+		;题目
+		
+		$p=$doc.paragraphs.add
+		
+		$p.range.text="考试科目:"&$docTitle & "姓名" & @TAB & "   学号：" & $i   
+		OleCtrlAdd( "填空",$p,"Forms.TextBox.1","")
+		
+		$doc.paragraphs.add
+		$p.range.paragraphformat.Alignment=0
+		;查询
+		;
+		#region tikong
+		$tx='填空'
+		$c= GUICtrlRead($Input1)
+		If $c >0 Then 
+			$p=$doc.paragraphs.add
+			$p.range.text= " . "&$tx
+			$p.Range.Fields.Add($p.Range.characters(1) , -1, "AUTONUM  \* CHINESENUM3")
+			
+			$doc.paragraphs.add
+			
+			_SQLite_Query(-1,"Select * from ( select random() as n , * From db Where kemu='" & $docTitle  _
+				&"' and " & " tixin='" & $tx &"' Order by n ) limit "&$c&" ; ",$data )
+			$j=1	
+			While _SQLite_FetchData($data,$arow)=$SQLITE_OK
+				 
+				$p=$doc.paragraphs.add
+				$p.range.paragraphformat.Alignment=2
+				$p.range.text=$j&". "& StringRegExpReplace($arow[4] ,"[\n\r]","")
+				
+				OleCtrlAdd( $tx,$p,"Forms.TextBox.1",$arow[5]) ;,$checked=0 )
+				$doc.paragraphs.add
+				$j+=1
+			WEnd
+		
+		EndIf
+	
+		#endregion
+		
+		#region danxuan
+		$tx='单选'
+		$c= GUICtrlRead($Input2)
+		If $c >0 Then 
+			$p=$doc.paragraphs.add
+			$p.range.text= " . "&$tx
+			$p.Range.Fields.Add($p.Range.characters(1) , -1, "AUTONUM  \* CHINESENUM3")
+			$doc.paragraphs.add
+			
+			_SQLite_Query(-1,"Select * from ( select random() as n , * From db Where kemu='" & $docTitle  _
+				&"' and " & " tixin='" & $tx &"' Order by n ) limit "&$c&" ; ",$data )
+			$j=1	
+			While _SQLite_FetchData($data,$arow)=$SQLITE_OK
+				
+				$p=$doc.paragraphs.add
+				$p.range.paragraphformat.Alignment=2
+				$p.range.text=$j&". "& StringRegExpReplace($arow[4] ,"[\n\r]","")
+				$doc.paragraphs.add
+				$asc=65
+				For $each In StringSplit($arow[6],@TAB , 2)
+					$each = StringReplace($each,"　"," ")
+					$each = StringRegExpReplace($each,"\A\s*","")
+					$each = StringRegExpReplace($each,"\s*\z","")
+					 
+					If $each="" Then ContinueLoop
+					
+					$p=$doc.paragraphs.add
+					$p.range.text="  "&@TAB& Chr($asc )&". "& $each
+					;$f=$p.Range.Fields.Add($p.Range.characters(1) , -1, "AUTONUM  \* ALPHABETIC")
+					OleCtrlAdd( $tx,$p,"Forms.OptionButton.1", $arow[1] ,Chr($asc )=$arow[5])
+					;ConsoleWrite(@crlf&"^t"&$each)
+					$asc+=1
+					$doc.paragraphs.add
+				Next
+					
+				;
+				;$doc.paragraphs.add
+				$j+=1
+			WEnd
+		
+		EndIf
+	
+		#endregion
+		 
+		#region panduan
+		$tx='判断'
+		$c= GUICtrlRead($Input4)
+		If $c >0 Then 
+			$p=$doc.paragraphs.add
+			$p.range.text= " . "&$tx
+			$p.Range.Fields.Add($p.Range.characters(1) , -1, "AUTONUM  \* CHINESENUM3")
+			$doc.paragraphs.add
+			
+			_SQLite_Query(-1,"Select * from ( select random() as n , * From db Where kemu='" & $docTitle  _
+				&"' and " & " tixin='" & $tx &"' Order by n ) limit "&$c&" ; ",$data )
+			$j=1	
+			While _SQLite_FetchData($data,$arow)=$SQLITE_OK
+				
+				$p=$doc.paragraphs.add
+				$p.range.paragraphformat.Alignment=2
+				$p.range.text="  "&@TAB&$j&". "& StringRegExpReplace($arow[4] ,"[\n\r]","")
+				OleCtrlAdd( $tx,$p,"Forms.CheckBox.1", " " ,1=$arow[5])
+				$doc.paragraphs.add
+				
+				$j+=1
+			WEnd
+		
+		EndIf
+	
+		#endregion
+		#region 解释
+		$tx='解释'
+		$c= GUICtrlRead($Input5)
+		If $c >0 Then 
+			$p=$doc.paragraphs.add
+			$p.range.text= " . "&$tx
+			$p.Range.Fields.Add($p.Range.characters(1) , -1, "AUTONUM  \* CHINESENUM3")
+			$doc.paragraphs.add
+			
+			_SQLite_Query(-1,"Select * from ( select random() as n , * From db Where kemu='" & $docTitle  _
+				&"' and " & " tixin='" & $tx &"' Order by n ) limit "&$c&" ; ",$data )
+			$j=1	
+			While _SQLite_FetchData($data,$arow)=$SQLITE_OK
+				
+				$p=$doc.paragraphs.add
+				$p.range.paragraphformat.Alignment=2
+				$p.range.text=$j&". "& StringRegExpReplace($arow[4] ,"[\n\r]","") & @crlf&@TAB
+								
+				OleCtrlAdd( $tx,$p,"Forms.TextBox.1",  $arow[5] )
+				$doc.paragraphs.add
+				
+				$j+=1
+			WEnd
+		
+		EndIf
+	
+		#endregion
+		
+		#region 问答
+		$tx='问答'
+		$c= GUICtrlRead($Input6)
+		If $c >0 Then 
+			$p=$doc.paragraphs.add
+			$p.range.text= " . "&$tx
+			$p.Range.Fields.Add($p.Range.characters(1) , -1, "AUTONUM  \* CHINESENUM3")
+			$doc.paragraphs.add
+		
+			_SQLite_Query(-1,"Select * from ( select random() as n , * From db Where kemu='" & $docTitle  _
+				&"' and " & " tixin='" & $tx &"' Order by n ) limit "&$c&" ; ",$data )
+			$j=1	
+			While _SQLite_FetchData($data,$arow)=$SQLITE_OK
+				
+				$p=$doc.paragraphs.add
+				$p.range.paragraphformat.Alignment=2
+				$p.range.text=$j&". "& StringRegExpReplace($arow[4] ,"[\n\r]","") & @crlf&@TAB
+								
+				OleCtrlAdd( $tx,$p,"Forms.TextBox.1", $arow[5] )
+				$doc.paragraphs.add
+				
+				$j+=1
+			WEnd
+		
+		EndIf
+	
+		#endregion
+		
+		If $i=0 Then 
+			If MsgBox(4,"提示","是否继续生成余下100份")=7 Then ExitLoop
+		
+			DirCreate(@ScriptDir&"\试卷\")			
+		Else
+			;Selection.Editors.Add -1
+			$doc.saveas(@ScriptDir&"\试卷\"&$i&".doc")
+			$doc.protect(3,False , "m"&Random(9999999) ) 
+			TrayTip("保存文档",@ScriptDir&"\试卷\"&$i&".doc",2,2)
+		EndIf
+		
+		$doc.close()
+	 Next
+	 
+	
+	 
+EndFunc
+Func Button4Click()
+		;
+		
+		Local $dir = FileSelectFolder("请将要检测的*.doc文件放置于程序目录下.","",2, @ScriptDir) 
+		;ConsoleWrite("("&$dir & ")")
+		$scroPath=$dir
+		FileWriteLine($scroPath&"\成绩.csv",StringFormat("%s,%s,%s,%s,%s,%s,%s,%s,%s,%s","学号","姓名","=d1*1+e1*1+f1*1+g1*1+h1*1+i1*1","填空","单选","复选","判断","解释","问答",@YEAR&"/"&@MON&"/"&@MDAY))
+		Local $files=_FileListToArray($dir);&"\" ,"*",2  )
+		_ArrayDisplay($files, "$FileList")
+		Local $f 
+		For $i=1 To $files[0]
+			if StringRight($files[$i],3)<>"doc" then ContinueLoop
+			$f=$app.documents.open($dir&"\"&$files[$i])
+			PaperCheck($f)
+			
+			$f.save()
+			$f.close(false)
+			
+		Next
+		TrayTip("提示","完成!",5,2)
+		ShellExecute($scroPath&"\成绩.csv")
+EndFunc
+Func PaperCheck($d)
+	;试卷评分
+	Dim $Vars[1],$Names[1]
+	$i =0
+	
+	For $each In $d.variables
+		_ArrayAdd($Vars,$each.value)
+		_ArrayAdd($Names,$each.name )
+	;	ConsoleWrite(@CRLF & $Names[$i]&"="&$vars[$i ])
+		$i+=1
+	Next
+	
+	$userId =$d.paragraphs(2).range.words.count ;inlineShapes
+	$userid=$d.paragraphs(2).range.words($userid-1).text
+	$userName=$d.inlineshapes(1).oleformat.object.text
+	Local $userScro[7]=[0,0,0,0,0,0,0]
+	
+	For $each In $d.inlineShapes
+		$object=$each.oleformat.object
+		Select
+			Case StringInStr($object.name,"tk")  ;填空
+				
+			Case StringInStr($object.name,"Option") ;单选
+				If  _ArraySearch($Names,$object.name)>0 Then 
+					$object.backcolor=255	
+					If $object.value=True   Then 	$userScro[1]+=1
+				EndIf
+				
+			Case StringInStr($object.name,"fx")	;复选
+				
+			Case StringInStr($object.name,"Check")	;判断
+				If  _ArraySearch($Names,$object.name)>0 Then 
+					$object.backcolor=255	
+					If $object.value=True   Then 	$userScro[3]+=2
+				ElseIf @error Then  ;复选答案为 非 
+					If $object.value=False   Then 	
+						$object.backcolor=255
+						$userScro[3]+=1
+					EndIf	
+					
+				EndIf
+			Case StringInStr($object.name,"js")	;解释
+			Case StringInStr($object.name,"wd")	;问答
+				
+		EndSelect
+		
+	Next
+	$userScro[6]=$userScro[5]+$userScro[4]+$userScro[3]+$userScro[2]+$userScro[1]+$userScro[0]
+	
+	FileWriteLine($scroPath&"\成绩.csv",StringFormat("%s,%s,%s,%s,%s,%s,%s,%s,%s",$userid,$userName,$userScro[6],$userScro[0],$userScro[1],$userScro[2],$userScro[3],$userScro[4],$userScro[5]))
+	
+EndFunc
+
+Func Combo1Change()
+	Local $arow ,$sqlItem
+	$sqlItem=GUICtrlRead( $Combo1)
+	_SQLite_QuerySingleRow(-1,"Select count(*) from db where kemu='" & $sqlItem &"' and tixin='填空';",$arow )
+	GUICtrlSetData($Input1,$arow[0])
+	_SQLite_QuerySingleRow(-1,"Select count(*) from db where kemu='" & $sqlItem &"' and tixin='单选';",$arow )
+	GUICtrlSetData($Input2,$arow[0])
+	_SQLite_QuerySingleRow(-1,"Select count(*) from db where kemu='" & $sqlItem &"' and tixin='多选';",$arow )
+	GUICtrlSetData($Input3,$arow[0])
+	_SQLite_QuerySingleRow(-1,"Select count(*) from db where kemu='" & $sqlItem &"' and tixin='判断';",$arow )
+	GUICtrlSetData($Input4,$arow[0])
+	_SQLite_QuerySingleRow(-1,"Select count(*) from db where kemu='" & $sqlItem &"' and tixin='解释';",$arow )
+	GUICtrlSetData($Input5,$arow[0])
+	_SQLite_QuerySingleRow(-1,"Select count(*) from db where kemu='" & $sqlItem &"' and tixin='问答';",$arow )
+	GUICtrlSetData($Input6,$arow[0])
+EndFunc
+Func ComboAdditem()
+	Local $arow 
+	_SQLite_QuerySingleRow(-1,"Select kemu from db group by kemu;",$arow )
+	GUICtrlSetData( $Combo1, _ArrayToString($arow, "|" ) )
+	;_GUICtrlComboBoxEx_AddString($Combo1,"dfd")
+	;_GUICtrlComboBoxEx_AddString($Combo1,"dfdd")
+EndFunc
+
+Func Form1Close()
+	exit
+EndFunc
+Func Form1Maximize()
+
+EndFunc
+Func Form1Minimize()
+
+EndFunc
+Func Form1Restore()
+
+EndFunc
+Func Radio1Click()
+$examType=1
+EndFunc
+Func Radio2Click()
+$examType=2
+EndFunc
+Func Radio3Click()
+$examType=3
+TrayTip("提示" , "仅能自动识别以‘ABCED’开始的可选项",5,2)
+EndFunc
+Func Radio4Click()
+$examType=4
+TrayTip("提示" , "仅能自动识别以‘ABCED’开始的可选项",5,2)
+EndFunc
+Func Radio5Click()
+$examType=5
+EndFunc
+Func Radio6Click()
+$examType=6
+EndFunc
+Func Radio7Click()
+$examType=7
+EndFunc
+Func Input1Change()
+
+EndFunc
+Func Input2Change()
+
+EndFunc
+Func Input3Change()
+
+EndFunc
+Func Input4Change()
+
+EndFunc
+Func Input5Change()
+
+EndFunc
+Func Input6Change()
+
+EndFunc
+Func OleCtrlAdd($_tixin,$para,$type,$TxtOrGroup,$checked=0)
+	Local $doc=$para.parent 
+	$TabIndex=StringInStr($para.range.text,@TAB)
+;	ConsoleWrite(@crlf&"$para.range.text>"&$para.range.text)
+	$rng=$para.range.Characters($TabIndex)
+	$rng.text=""
+	$obj=$rng.InlineShapes.AddOLEControl($type)
+	
+	
+	Switch $type 
+		Case "Forms.TextBox.1"
+			$obj.oleformat.object.specialEffect=3
+			$obj.oleformat.object.width=60 ;StringLen($TxtOrGroup )*26 +40
+			If $_tixin<>"填空" Then
+			  $obj.oleformat.object.multiline= True
+			  $obj.oleformat.object.width=420
+			  $obj.oleformat.object.Height=_iif($_tixin="问答",100,50)
+			  $obj.oleformat.object.specialEffect=0
+			  $obj.oleformat.object.scrollbars=3
+			EndIf
+			$doc.variables.add($obj.oleformat.object.name,$TxtOrGroup)
+			
+		Case "Forms.OptionButton.1"
+			$obj.oleformat.object.specialEffect=0
+			$obj.oleformat.object.groupName=$TxtOrGroup
+			$obj.oleformat.object.caption=""
+			$obj.oleformat.object.width=16
+			If $checked Then 
+				$doc.variables.add($obj.oleformat.object.name,$obj.oleformat.object.name)
+			Else
+				$doc.variables.add($obj.oleformat.object.name,"")	
+			EndIf
+			
+			  
+		  Case "Forms.CheckBox.1"	
+			  $obj.oleformat.object.specialEffect=0
+		 	$obj.oleformat.object.groupName=$TxtOrGroup
+			$obj.oleformat.object.caption=" "
+			$obj.oleformat.object.width=16
+		
+			If $checked Then 
+				$doc.variables.add($obj.oleformat.object.name,$obj.oleformat.object.name)
+			Else
+				$doc.variables.add($obj.oleformat.object.name,"")	
+			EndIf
+		 
+		
+	EndSwitch
+	;Return $obj
+EndFunc
+}}}

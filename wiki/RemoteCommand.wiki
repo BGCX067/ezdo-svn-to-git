@@ -1,0 +1,36 @@
+#labels File-CMD,For-Exam
+# 有用的网络教室远程命令.
+
+= Introduction =
+
+。。。.
+
+
+= Details =
+{{{
+；删除F：根目录下的*.exe
+Cmd.exe
+	/C "del f:\*.exe"
+
+；隐藏桌面图标
+reg.exe
+	add hkcu\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer /v nodesktop /t reg_dword /d 1 /f
+taskkill.exe
+	/f /im explorer.exe
+explorer.exe
+
+;隐藏所有驱动器(重启系统？)
+
+reg.exe
+	add hkcu\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer /v NoDrives /t reg_dword /d 4294967043 /f
+taskkill.exe
+	/f /im explorer.exe
+explorer.exe
+
+;禁桌面右击
+reg.exe
+	add hkcu\Software\Microsoft\Windows\CurrentVersion\Policies\Explorer /v NoViewContextMenu /t reg_dword /d 1 /f
+taskkill.exe
+	/f /im explorer.exe
+explorer.exe
+}}}
